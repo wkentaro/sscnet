@@ -17,6 +17,14 @@ np.set_printoptions(precision=3, suppress=True)
 
 # Notes: grid is Z up while the The loaded houses are Y up
 pathToData = pathlib.Path('~/data/datasets/SUNCG/suncg').expanduser()
+# -----------------------------------------------------------------------------
+# sceneId = '0004d52d1aeeb8ae6de39d6bd993e992'
+# roomCameraName_file = pathToData / 'camera' / sceneId / 'room_camera_name.txt'
+# roomCameraName = np.loadtxt(roomCameraName_file, dtype=str, comments=None)[0]
+# floorId, roomId, _ = [int(x) for x in roomCameraName.split('#')[1].split('_')]
+# cameraPose_file = pathToData / 'camera' / sceneId / 'room_camera.txt'
+# cameraPose = np.loadtxt(cameraPose_file)[0]
+# -----------------------------------------------------------------------------
 sceneId = '000514ade3bcc292a613a4c2755a5050'
 floorId = 0
 roomId = 0
@@ -26,6 +34,7 @@ cameraPose = np.array([
     0.00835255, 0.980581, -0.195938,
     0.55, 0.430998, 17.8815,
 ], dtype=np.float64)
+# -----------------------------------------------------------------------------
 extCam2World = camPose2Extrinsics(cameraPose)
 extCam2World = np.c_[
     (
@@ -87,11 +96,12 @@ with open(pathToData / 'house' / sceneId / 'house.json') as f:
 roomStruct = house['levels'][floorId]['nodes'][roomId];
 floorStruct = house['levels'][floorId];
 
+inRoom = np.zeros(gridPtsWorldX.shape, dtype=bool)
 # find all grid in the room
 floor_file = pathToData / 'room' / sceneId / (roomStruct['modelId'] + 'f.obj')
 if floor_file.exists():
+    print('Loading floor')
     floorObj = trimesh.load(str(floor_file))
-    inRoom = np.zeros(gridPtsWorldX.shape, dtype=bool)
     for i in range(len(floorObj.faces)):
         faceId = floorObj.faces[i]
         floorP = floorObj.vertices[faceId][:, [0, 2]]  # x, y
@@ -115,6 +125,7 @@ ceiling_file = (
     pathToData / 'room' / sceneId / (roomStruct['modelId'] + 'c.obj')
 )
 if ceiling_file.exists():
+    print('Loading ceiling')
     ceilObj = trimesh.load(str(ceiling_file))
     ceilZ = np.mean(ceilObj.vertices[:, 1])
     gridPtsObjWorldInd = (
@@ -127,6 +138,7 @@ if ceiling_file.exists():
 # Load walls
 walls_file = pathToData / 'room' / sceneId / (roomStruct['modelId'] + 'w.obj')
 if walls_file.exists():
+    print('Loading walls')
     WallObj = trimesh.load(str(walls_file))
     inWall = np.zeros(gridPtsWorldX.shape, dtype=bool)
     for wallObj in WallObj:
@@ -144,13 +156,12 @@ if walls_file.exists():
         (gridPtsWorld[2, :] < (ceilZ - voxUnit / 2.)) &
         (gridPtsWorld[2, :] > (floorZ + voxUnit / 2.))
     )
-    _, classRootId, _, _, _ = getobjclassSUNCG('wall',objcategory)
+    _, classRootId, _, _, _ = getobjclassSUNCG('wall', objcategory)
     gridPtsLabel[gridPtsObjWorldInd] = classRootId
-
-
 
 # Loop through each object and set voxels to class ID
 if 'nodeIndices' in roomStruct:
+    print('Loading objects')
     for objId in roomStruct['nodeIndices']:
         object_struct = floorStruct['nodes'][objId]
         if 'modelId' in object_struct:
@@ -219,15 +230,49 @@ if 'nodeIndices' in roomStruct:
             gridPtsObjWorldLinearIdx = np.argwhere(gridPtsObjWorldInd)[:, 0]
             gridPtsLabel[:, gridPtsObjWorldLinearIdx[objOccInd]] = classRootId
 
+# # Remove grid points not in field of view
+# extWorld2Cam = np.linalg.inv(np.vstack([extCam2World, [0, 0, 0, 1]]))
+# gridPtsCam = extWorld2Cam[0:3,0:3] @ gridPtsWorld + np.repeat(
+#     extWorld2Cam[0:3, 3][:, None], gridPtsWorld.shape[1], axis=1,
+# )
+# gridPtsPixX = gridPtsCam[0, :] * camK[0, 0] / gridPtsCam[2, :] + camK[0, 2]
+# gridPtsPixY = gridPtsCam[1, :] * camK[1, 1] / gridPtsCam[2, :] + camK[1, 2]
+# invalidPixInd = (
+#     (gridPtsPixX < 0) |
+#     (gridPtsPixX >= 640) |
+#     (gridPtsPixY < 0) |
+#     (gridPtsPixY >= 480)
+# )
+# gridPtsLabel[:, invalidPixInd] = 0
+#
+# # Remove grid points not in the room
+# gridPtsLabel[:, ~inRoom.flatten() & (gridPtsLabel.flatten() == 0)] = 255
+#
+# # Change coordinate axes XYZ -> YZX
+# extSwap = np.array([[0, 1, 0], [0, 0, 1], [1, 0, 0]], dtype=np.float64)
+# gridPtsX, gridPtsY, gridPtsZ = np.meshgrid(
+#     np.arange(voxSize[0]), np.arange(voxSize[1]), np.arange(voxSize[2])
+# )
+# gridPts = np.c_[gridPtsX.flatten(), gridPtsY.flatten(), gridPtsZ.flatten()].T
+# gridPts = extSwap[0:3, 0:3] @ gridPts
+# gridPts = gridPts.astype(np.int64)
+# gridPtsLabel = gridPtsLabel.reshape(voxSizeTarget)
+# gridPtsLabel[gridPts[0], gridPts[1], gridPts[2]] = gridPtsLabel.flatten()
+# gridPtsLabel = gridPtsLabel.reshape(1, -1)
+#
+# # Save the volume
+# sceneVox = gridPtsLabel.reshape(voxSizeTarget)
 
-points = gridPtsWorld.T
+# -----------------------------------------------------------------------------
 
-keep = (gridPtsLabel > 0).flatten()
-points = points[keep, :]
-gridPtsLabel = gridPtsLabel[0, keep]
+gridPtsLabel = gridPtsLabel.reshape(240, 240, 144)
+
+keep = ~np.isin(gridPtsLabel, [0, 255])
+points = np.argwhere(keep)
+labels = gridPtsLabel[keep]
 
 colormap = labelme.utils.label_colormap()
-color = colormap[gridPtsLabel]
+colors = colormap[labels]
 
-pc = trimesh.PointCloud(vertices=points, color=color)
+pc = trimesh.PointCloud(vertices=points, color=colors)
 pc.show()
