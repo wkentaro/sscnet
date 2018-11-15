@@ -6,7 +6,7 @@ def camPose2Extrinsics(cameraPose):
     # extrinsics : camera to world
     tv = cameraPose[3:6]
     uv = cameraPose[6:9]
-    rv = np.cross(tv, uv);
+    rv = np.cross(tv, uv)
 
     extrinsics = np.c_[
         rv,
