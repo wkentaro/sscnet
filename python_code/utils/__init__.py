@@ -8,3 +8,5 @@ from .camPose2Extrinsics import camPose2Extrinsics
 from .getobjclassSUNCG import getobjclassSUNCG
 
 from .show_volume import show_volume
+
+from .writeRLEfile import writeRLEfile
