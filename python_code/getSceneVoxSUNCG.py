@@ -230,49 +230,50 @@ if 'nodeIndices' in roomStruct:
             gridPtsObjWorldLinearIdx = np.argwhere(gridPtsObjWorldInd)[:, 0]
             gridPtsLabel[:, gridPtsObjWorldLinearIdx[objOccInd]] = classRootId
 
-# # Remove grid points not in field of view
-# extWorld2Cam = np.linalg.inv(np.vstack([extCam2World, [0, 0, 0, 1]]))
-# gridPtsCam = extWorld2Cam[0:3,0:3] @ gridPtsWorld + np.repeat(
-#     extWorld2Cam[0:3, 3][:, None], gridPtsWorld.shape[1], axis=1,
-# )
-# gridPtsPixX = gridPtsCam[0, :] * camK[0, 0] / gridPtsCam[2, :] + camK[0, 2]
-# gridPtsPixY = gridPtsCam[1, :] * camK[1, 1] / gridPtsCam[2, :] + camK[1, 2]
-# invalidPixInd = (
-#     (gridPtsPixX < 0) |
-#     (gridPtsPixX >= 640) |
-#     (gridPtsPixY < 0) |
-#     (gridPtsPixY >= 480)
-# )
-# gridPtsLabel[:, invalidPixInd] = 0
-#
-# # Remove grid points not in the room
-# gridPtsLabel[:, ~inRoom.flatten() & (gridPtsLabel.flatten() == 0)] = 255
-#
-# # Change coordinate axes XYZ -> YZX
-# extSwap = np.array([[0, 1, 0], [0, 0, 1], [1, 0, 0]], dtype=np.float64)
-# gridPtsX, gridPtsY, gridPtsZ = np.meshgrid(
-#     np.arange(voxSize[0]), np.arange(voxSize[1]), np.arange(voxSize[2])
-# )
-# gridPts = np.c_[gridPtsX.flatten(), gridPtsY.flatten(), gridPtsZ.flatten()].T
-# gridPts = extSwap[0:3, 0:3] @ gridPts
-# gridPts = gridPts.astype(np.int64)
-# gridPtsLabel = gridPtsLabel.reshape(voxSizeTarget)
-# gridPtsLabel[gridPts[0], gridPts[1], gridPts[2]] = gridPtsLabel.flatten()
-# gridPtsLabel = gridPtsLabel.reshape(1, -1)
-#
-# # Save the volume
-# sceneVox = gridPtsLabel.reshape(voxSizeTarget)
+# Remove grid points not in field of view
+extWorld2Cam = np.linalg.inv(np.vstack([extCam2World, [0, 0, 0, 1]]))
+gridPtsCam = extWorld2Cam[0:3,0:3] @ gridPtsWorld + np.repeat(
+    extWorld2Cam[0:3, 3][:, None], gridPtsWorld.shape[1], axis=1,
+)
+gridPtsPixX = gridPtsCam[0, :] * camK[0, 0] / gridPtsCam[2, :] + camK[0, 2]
+gridPtsPixY = gridPtsCam[1, :] * camK[1, 1] / gridPtsCam[2, :] + camK[1, 2]
+invalidPixInd = (
+    (gridPtsPixX < 0) |
+    (gridPtsPixX >= 640) |
+    (gridPtsPixY < 0) |
+    (gridPtsPixY >= 480)
+)
+gridPtsLabel[:, invalidPixInd] = 0
+
+# Remove grid points not in the room
+gridPtsLabel[:, ~inRoom.flatten() & (gridPtsLabel.flatten() == 0)] = 255
+
+# Change coordinate axes XYZ -> YZX
+extSwap = np.array([[0, 1, 0], [0, 0, 1], [1, 0, 0]], dtype=np.float64)
+gridPtsY, gridPtsX, gridPtsZ = np.meshgrid(
+    np.arange(voxSize[1]), np.arange(voxSize[0]), np.arange(voxSize[2])
+)
+gridPts = np.c_[gridPtsX.flatten(), gridPtsY.flatten(), gridPtsZ.flatten()].T
+gridPts = extSwap[0:3, 0:3] @ gridPts
+gridPts = gridPts.astype(np.int64)
+gridPtsLabel = gridPtsLabel.reshape(voxSizeTarget)
+gridPtsLabel[gridPts[0], gridPts[1], gridPts[2]] = gridPtsLabel.flatten()
+gridPtsLabel = gridPtsLabel.reshape(1, -1)
+
+# Save the volume
+sceneVox = gridPtsLabel.reshape(voxSizeTarget)
 
 # -----------------------------------------------------------------------------
 
-gridPtsLabel = gridPtsLabel.reshape(240, 240, 144)
+def show_volume(volume):
+    keep = ~np.isin(volume, [0, 255])
+    points = np.argwhere(keep)
+    labels = volume[keep]
 
-keep = ~np.isin(gridPtsLabel, [0, 255])
-points = np.argwhere(keep)
-labels = gridPtsLabel[keep]
+    colormap = labelme.utils.label_colormap()
+    colors = colormap[labels]
 
-colormap = labelme.utils.label_colormap()
-colors = colormap[labels]
+    pc = trimesh.PointCloud(vertices=points, color=colors)
+    pc.show()
 
-pc = trimesh.PointCloud(vertices=points, color=colors)
-pc.show()
+show_volume(sceneVox)
