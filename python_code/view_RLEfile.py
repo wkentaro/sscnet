@@ -25,8 +25,8 @@ def main():
         sceneVoxRLE = sceneVoxRLE.reshape(-1, 2)
         sceneVox_values = sceneVoxRLE[:, 0]
         sceneVox_repeats = sceneVoxRLE[:, 1]
-        voxSize = (240, 144, 240)
-        sceneVox = sceneVox_values.repeat(sceneVox_repeats).reshape(voxSize)
+        sceneVox = sceneVox_values.repeat(sceneVox_repeats)
+        sceneVox = sceneVox.reshape((240, 144, 240), order='F')
 
     utils.show_volume(sceneVox)
 
