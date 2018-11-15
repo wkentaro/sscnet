@@ -1,8 +1,8 @@
 function genSUNCGdataScript(sceneId)
     % Example script of generating volumetric grondtruth for SUNCG scenes
     % Parameters
-    suncgDataPath = '/n/fs/suncg/planner5d/';
-    suncgToolboxPath =' ~/Documents/SceneVox/SUNCGtoolbox/';
+    suncgDataPath = '/home/wkentaro/data/datasets/SUNCG/suncg';
+    suncgToolboxPath =' /home/wkentaro/InstanceComplete/suncg-python/src/SUNCGtoolbox/';
     outputdir = '/tmp';
     usemeasa =''; % to use mesa change to: usemeasa = '-mesa' 
     

@@ -1,14 +1,17 @@
 function [sceneVox, voxOriginWorld] = getSceneVoxSUNCG(pathToData,sceneId,floorId,roomId,extCam2World)
 % Notes: grid is Z up while the The loaded houses are Y up 
-%{
-pathToData = '/n/fs/suncg/data/planner5d/';
-sceneId = '000514ade3bcc292a613a4c2755a5050';
-floorId = 1;
-roomId = 1;
-cameraPose = [43.9162 1.64774 50.0449  0.0417627 -0.196116 -0.979691  0.00835255 0.980581 -0.195938  0.55 0.430998  17.8815];
-extCam2World = camPose2Extrinsics(cameraPose);
-extCam2World = [[1 0 0; 0 0 1; 0 1 0]*extCam2World(1:3,1:3)*[1 0 0; 0 0 1; 0 1 0] extCam2World([1,3,2],4)];
-%}
+
+if ~exist('sceneId','var')
+  pathToData = '/home/wkentaro/data/datasets/SUNCG/suncg';
+  sceneId = '000514ade3bcc292a613a4c2755a5050';
+  floorId = 1;
+  roomId = 1;
+  cameraPose = [43.9162 1.64774 50.0449  0.0417627 -0.196116 -0.979691  0.00835255 0.980581 -0.195938  0.55 0.430998  17.8815];
+  extCam2World = camPose2Extrinsics(cameraPose);
+  extCam2World = [[1 0 0; 0 0 1; 0 1 0]*extCam2World(1:3,1:3)*[1 0 0; 0 0 1; 0 1 0] extCam2World([1,3,2],4)];
+end
+
+
 
 load('suncgObjcategory.mat')
 volume_param;
